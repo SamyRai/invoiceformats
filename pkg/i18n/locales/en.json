@@ -1,0 +1,34 @@
+{
+  "invoice": "Invoice",
+  "date": "Date",
+  "due_date": "Due Date",
+  "provider": "Provider",
+  "client": "Client",
+  "total": "Total",
+  "notes": "Notes",
+  "recurring_note": "This invoice covers recurring services as described.",
+  "vat_note": "VAT exempt under applicable law.",
+  "legal_footer": "This invoice is issued in accordance with the applicable laws.",
+  "vat_exemption_small_business": "No VAT charged according to § 19 UStG (small business regulation).",
+  "vat_exemption_non_eu": "VAT not charged for non-EU customer.",
+  "vat_exemption_reverse_charge": "Reverse charge procedure applies.",
+  "vat_exemption_export": "Export: VAT exempt as per export regulations.",
+  "vat_exemption_intra_community": "Intra-community supply: VAT exempt under EU law.",
+  "vat_exemption_education": "VAT exempt for educational services.",
+  "vat_exemption_medical": "VAT exempt for medical services.",
+  "vat_exemption_financial": "VAT exempt for financial services.",
+  "vat_exemption_other": "VAT exemption applies (see notes).",
+  "tariff_import": "Import duties may apply.",
+  "tariff_customs": "Customs tariffs may apply.",
+  "tariff_excise": "Excise duties may apply.",
+  "tariff_environmental": "Environmental taxes may apply.",
+  "tariff_luxury": "Luxury goods tax may apply.",
+  "tariff_other": "Other tariffs may apply.",
+  "default_payment_terms": "Please pay within 30 days. Thank you for your business!",
+  "tax_rule": {
+    "type": "flat",
+    "params": {
+      "rate": 0.2
+    }
+  }
+}

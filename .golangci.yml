@@ -1,0 +1,93 @@
+version: v2
+run:
+  timeout: 5m
+
+linters:
+  enable:
+    - govet
+    - staticcheck
+    - errcheck
+    - gosimple
+    - unused
+    - deadcode
+    - structcheck
+    - varcheck
+    - ineffassign
+    - typecheck
+    - misspell
+    - gocyclo
+    - gofmt
+    - goimports
+    - gosec
+    - dupl
+    - unparam
+    - nakedret
+    - dogsled
+    - goconst
+    - gocritic
+    - depguard
+    - exportloopref
+    - prealloc
+    - scopelint
+    - stylecheck
+    - revive
+    - forbidigo
+    - nestif
+    - nolintlint
+    - whitespace
+    - asasalint
+    - bodyclose
+    - cyclop
+    - exhaustivestruct
+    - exhaustive
+    - funlen
+    - gci
+    - goerr113
+    - gomnd
+    - lll
+    - makezero
+    - maligned
+    - nestif
+    - noctx
+    - rowserrcheck
+    - sqlclosecheck
+    - testpackage
+    - thelper
+    - tparallel
+    - unconvert
+    - wastedassign
+    - wrapcheck
+    - wsl
+
+linters-settings:
+  gocyclo:
+    min-complexity: 10
+  lll:
+    line-length: 120
+  funlen:
+    lines: 60
+    statements: 30
+  dupl:
+    threshold: 50
+  gosec:
+    exclude-rules:
+      - G104 # Ignore errors not checked for some commands
+  revive:
+    ignore-generated-header: true
+    severity: warning
+    confidence: 0.8
+    rules:
+      - name: var-naming
+        arguments:
+          allow-leading-underscore: false
+  depguard:
+    list-type: blacklist
+    packages:
+      - "fmt"
+    packages-with-error-message:
+      "fmt": "Use the project logger instead of fmt."
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+

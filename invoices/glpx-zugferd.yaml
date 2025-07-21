@@ -1,0 +1,57 @@
+provider:
+  name: Glowing Pixels UG (haftungsbeschränkt)
+  address:
+    street: Coppistr. 12
+    city: Berlin
+    country: Germany
+    postal_code: "10365"
+  email: info@glowing-pixels.com
+  phone: "015202328598"
+  vat_id: DE343785817
+  tax_number: 37/309/50721
+  website: www.glowing-pixels.com
+  iban: DE15 1101 0101 5770 5921 09
+  swift: SOBKDEB2XXX
+
+client:
+  name: Pixel Dynamics GmbH
+  address:
+    street: Hauptstr. 45
+    city: München
+    country: Germany
+    postal_code: "80331"
+  email: kontakt@pixeldynamics.de
+
+invoice:
+  number: RE-2025-007
+  date: 2025-07-13T00:00:00Z
+  due_date: 2025-08-13T00:00:00Z
+  currency:
+    code: EUR
+    symbol: "€"
+    rate: 1.0
+  payment_terms:
+    due_days: 30
+    description: "Please pay within 30 days. Thank you for your business!"
+  language: de
+  vat_exemption_reason: "Reverse charge procedure."
+  lines:
+    - description: Web design and development
+      quantity: 1
+      unit_price: 3200.00
+      tax_rate: 0.0
+      discount: 0.0
+    - description: Monthly hosting (July 2025)
+      quantity: 1
+      unit_price: 120.00
+      tax_rate: 0.0
+      discount: 0.0
+    - description: SEO optimization
+      quantity: 1
+      unit_price: 450.00
+      tax_rate: 0.0
+      discount: 0.0
+  notes: |
+    Please pay within 30 days. Thank you for your business!
+
+embedded_data: zugferd

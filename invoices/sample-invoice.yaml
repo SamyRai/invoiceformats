@@ -1,0 +1,67 @@
+# Sample Invoice Data
+# This file demonstrates the structure for invoice data
+
+provider:
+  name: "TechCorp Solutions Ltd"
+  address:
+    street: "123 Innovation Drive, Suite 200"
+    city: "San Francisco"
+    postal_code: "94105"
+    state: "CA"
+    country: "USA"
+  vat_id: "US123456789"
+  email: "billing@techcorp.com"
+  phone: "+1 (555) 123-4567"
+  website: "https://techcorp.com"
+  iban: "US12 3456 7890 1234 5678 90"
+  swift: "USBKUS33"
+
+client:
+  name: "Startup Innovations Inc"
+  address:
+    street: "456 Startup Boulevard"
+    city: "Austin"
+    postal_code: "73301"
+    state: "TX"
+    country: "USA"
+  email: "accounts@startupinc.com"
+  phone: "+1 (555) 987-6543"
+  vat_id: "US987654321"
+
+invoice:
+  number: "INV-2025-001"
+  # Dates will be auto-generated if not provided
+  # date: "2025-07-10"
+  # due_date: "2025-08-09"
+  currency:
+    code: "USD"
+    symbol: "$"
+    rate: 1.0
+  payment_terms:
+    due_days: 30
+    description: "Payment due within 30 days. Late fees may apply."
+  notes: "Thank you for your business! Please contact us if you have any questions."
+  lines:
+    - description: "Full-Stack Web Development"
+      quantity: 80.0
+      unit_price: 120.00
+      tax_rate: 8.5
+      discount: 0.0
+    
+    - description: "API Integration Services"
+      quantity: 24.0
+      unit_price: 150.00
+      tax_rate: 8.5
+      discount: 5.0
+    
+    - description: "Technical Consultation"
+      quantity: 12.0
+      unit_price: 200.00
+      tax_rate: 8.5
+      discount: 0.0
+    
+    - description: "Project Management"
+      quantity: 16.0
+      unit_price: 100.00
+      tax_rate: 8.5
+      discount: 0.0

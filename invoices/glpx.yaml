@@ -1,0 +1,42 @@
+provider:
+  name: Glowing Pixels UG (haftungsbeschränkt)
+  address:
+    street: Coppistr, 12
+    city: Berlin
+    country: Germany
+    postal_code: "10365"
+  email: info@glowing-pixels.com
+  phone: "015202328598"
+  vat_id: DE343785817
+  tax_number: 37/309/50721
+  website: www.glowing-pixels.com
+  iban: DE15 1101 0101 5770 5921 09
+  swift: SOBKDEB2XXX
+
+client:
+  name: Urban Agritechs Trading LLC
+  address:
+    street: Business Bay, 2108 Lakes Central Tower
+    city: Dubai
+    country: United Arab Emirates
+    postal_code: "00000"
+  email: i.naraghi@urbanagritechs.com
+
+invoice:
+  number: RE-2023-010
+  date: 2023-06-12T00:00:00Z
+  due_date: 2023-07-12T00:00:00Z
+  currency:
+    code: EUR
+    symbol: "€"
+  language: de
+  vat_exemption_reason: "Gemäß § 19 UStG wird keine Umsatzsteuer berechnet (Kleinunternehmerregelung)."
+  lines:
+    - description: Business Infrastructure support
+      quantity: 1
+      unit_price: 700.00
+  notes: |
+    Value added tax free services according to §19 UStG.
+    Please pay within 30 days until 12.07.2023.
+
+embedded_data: zugferd
