@@ -2,6 +2,7 @@ package zugferd
 
 import (
 	"encoding/xml"
+	"fmt"
 	"invoiceformats/pkg/models"
 )
 
@@ -86,8 +87,8 @@ type AddressXML struct {
 type LineItemXML struct {
 	Description string  `xml:"ram:SpecifiedTradeProduct>ram:Name"`
 	Quantity    float64 `xml:"ram:SpecifiedLineTradeDelivery>ram:BilledQuantity"`
-	UnitPrice   float64 `xml:"ram:SpecifiedLineTradeAgreement>ram:GrossPriceProductTradePrice>ram:ChargeAmount"`
-	Total       float64 `xml:"ram:LineTotalAmount"`
+	UnitPrice   string  `xml:"ram:SpecifiedLineTradeAgreement>ram:GrossPriceProductTradePrice>ram:ChargeAmount"`
+	Total       string  `xml:"ram:LineTotalAmount"`
 	TaxRate     float64 `xml:"ram:ApplicableTradeTax>ram:RateApplicablePercent"`
 	// TODO [context: Line item XML, priority: medium, effort: medium]: Add product codes, units, etc.
 }
@@ -95,7 +96,7 @@ type LineItemXML struct {
 // TaxDetailXML for tax details
 type TaxDetailXML struct {
 	Type   string  `xml:"ram:TypeCode"`
-	Amount float64 `xml:"ram:CalculatedAmount"`
+	Amount string  `xml:"ram:CalculatedAmount"`
 	Rate   float64 `xml:"ram:RateApplicablePercent"`
 	// TODO [context: Tax details XML, priority: medium, effort: medium]: Add support for multi-rate VAT, exemptions, etc.
 }
@@ -144,8 +145,8 @@ func MapInvoiceDataToZUGFeRD(data *models.InvoiceData) ZUGFeRDInvoiceXML {
 					items[i] = LineItemXML{
 						Description: line.Description,
 						Quantity: line.Quantity.InexactFloat64(),
-						UnitPrice: line.UnitPrice.InexactFloat64(),
-						Total: line.Total.InexactFloat64(),
+						UnitPrice: fmt.Sprintf("%.2f", line.UnitPrice.InexactFloat64()),
+						Total: fmt.Sprintf("%.2f", line.Total.InexactFloat64()),
 						TaxRate: line.TaxRate.InexactFloat64(),
 					}
 				}
@@ -153,14 +154,14 @@ func MapInvoiceDataToZUGFeRD(data *models.InvoiceData) ZUGFeRDInvoiceXML {
 			}(),
 		},
 		Settlement: TradeSettlementXML{
-			GrandTotal: inv.GrandTotal.String(),
+			GrandTotal: fmt.Sprintf("%.2f", inv.GrandTotal.InexactFloat64()),
 			Currency: inv.Currency.Code,
 			Taxes: func() []TaxDetailXML {
 				taxes := make([]TaxDetailXML, 0)
 				for _, line := range inv.Lines {
 					taxes = append(taxes, TaxDetailXML{
 						Type: "VAT",
-						Amount: line.TaxAmount.InexactFloat64(),
+						Amount: fmt.Sprintf("%.2f", line.TaxAmount.InexactFloat64()),
 						Rate: line.TaxRate.InexactFloat64(),
 					})
 				}

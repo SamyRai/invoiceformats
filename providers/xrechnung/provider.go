@@ -4,8 +4,6 @@ package xrechnung
 import (
 	"fmt"
 	"invoiceformats/pkg/models"
-
-	"invoiceformats"
 )
 
 // XRechnungProvider implements all required interfaces for XRechnung invoices.
@@ -14,7 +12,7 @@ type XRechnungProvider struct{}
 // GenerateXML generates XRechnung-compliant XML from invoice data.
 func (p *XRechnungProvider) GenerateXML(data models.InvoiceData) ([]byte, error) {
 	// TODO [context=xrechnung xml, priority=high, effort=2h]: Implement XRechnung XML generation logic
-	return nil, invoiceformats.ErrInvalidInvoice{Reason: "XRechnung XML generation not implemented"}
+	return nil, fmt.Errorf("XRechnung XML generation not implemented")
 }
 
 // ValidateXML validates XRechnung XML against schemas and business rules.
@@ -30,7 +28,8 @@ func (p *XRechnungProvider) EmbedXMLIntoPDF(pdf []byte, xml []byte, description 
 }
 
 // NewProviderSet returns a ProviderSet for XRechnung using dependency injection.
-func NewProviderSet() *invoiceformats.ProviderSet {
-	provider := &XRechnungProvider{}
-	return invoiceformats.NewProviderSet(provider, provider, provider)
-}
+// TODO: Implement ProviderSet registration for XRechnung if needed.
+// func NewProviderSet() *ProviderSet {
+// 	provider := &XRechnungProvider{}
+// 	return NewProviderSet(provider, provider, provider)
+// }

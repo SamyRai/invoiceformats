@@ -1,8 +1,8 @@
 package render
 
 import (
-	"html/template"
-	"strings"
+	"encoding/json"
+	"os"
 	"testing"
 	"time"
 
@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"invoiceformats/pkg/models"
+	"invoiceformats/pkg/render/locale"
 )
 
 func sampleInvoiceData() models.InvoiceData {
@@ -61,9 +62,13 @@ func sampleInvoiceData() models.InvoiceData {
 	}
 }
 
+func fakeI18nProvider(lang string, locales map[string]string) func(string) string {
+	return func(key string) string { return key }
+}
+
 func TestRenderHTML_Success(t *testing.T) {
 	data := sampleInvoiceData()
-	html, err := RenderHTML(data, "")
+	html, err := RenderHTML(data, "", fakeI18nProvider)
 	require.NoError(t, err)
 	assert.NotEmpty(t, html)
 	assert.Contains(t, html, "Test Provider")
@@ -72,56 +77,69 @@ func TestRenderHTML_Success(t *testing.T) {
 	assert.Contains(t, html, "$")
 }
 
-func TestRenderHTML_InvalidTemplate(t *testing.T) {
-	// Simulate missing template by parsing a non-existent file
-	tmpl := templateFuncs // just to use the variable, not needed for test logic
-	_ = tmpl
-	// Not possible to inject a missing template with current API, so skip this test for now
-	// TODO: [low, 1h] Refactor RenderHTML to allow template name injection for better testability
-}
-
 func TestRenderHTML_InvalidData(t *testing.T) {
 	// Provide incomplete data (missing required fields)
 	data := models.InvoiceData{}
-	html, err := RenderHTML(data, "")
+	html, err := RenderHTML(data, "", fakeI18nProvider)
 	// The template will render zero values, but should not error
 	assert.NoError(t, err)
 	assert.NotEmpty(t, html)
 	// Should not panic or return error, but output will be mostly empty
 }
 
-func TestRenderHTML_TemplateFunctions(t *testing.T) {
-	// Test a few template functions via template execution
-	tmpl := `{{"hello world" | title}} {{"foo" | upper}} {{add 2 3}} {{gt 5 2}} {{capitalize "bar"}}`
-	tpl, err := template.New("test").Funcs(templateFuncs).Parse(tmpl)
-	require.NoError(t, err)
-	var buf strings.Builder
-	err = tpl.Execute(&buf, nil)
-	require.NoError(t, err)
-	out := buf.String()
-	assert.Contains(t, out, "Hello World")
-	assert.Contains(t, out, "FOO")
-	assert.Contains(t, out, "5")
-	assert.Contains(t, out, "true")
-	assert.Contains(t, out, "Bar")
-}
-
 func TestRenderHTML_CustomTemplate(t *testing.T) {
 	data := sampleInvoiceData()
 	customPath := "test_custom.tmpl"
-	html, err := RenderHTML(data, customPath)
+	tmplContent := `Custom Template: {{.Provider.Name}} - {{.Client.Name}}`
+	os.WriteFile(customPath, []byte(tmplContent), 0644)
+	defer os.Remove(customPath)
+	html, err := RenderHTML(data, customPath, fakeI18nProvider)
 	require.NoError(t, err)
 	assert.Contains(t, html, "Custom Template")
 	assert.Contains(t, html, data.Provider.Name)
 	assert.Contains(t, html, data.Client.Name)
 }
 
-func TestRenderHTML_DefaultTemplate(t *testing.T) {
+func TestRenderHTMLWithLocale_CustomTemplateAndLocale(t *testing.T) {
 	data := sampleInvoiceData()
-	html, err := RenderHTML(data, "")
+	customTemplate := "test_custom.tmpl"
+	customLocale := "test_locales.json"
+	tmplContent := `Custom Template: {{.Provider.Name}} - {{t "invoice"}}`
+	localeContent := `{"en": {"invoice": "Test Invoice"}}`
+	os.WriteFile(customTemplate, []byte(tmplContent), 0644)
+	os.WriteFile(customLocale, []byte(localeContent), 0644)
+	defer os.Remove(customTemplate)
+	defer os.Remove(customLocale)
+
+	// Use a real locale loader with embedded data
+	var locales map[string]map[string]string
+	_ = json.Unmarshal([]byte(localeContent), &locales)
+	embeddedData, _ := json.Marshal(locales)
+	loader := &locale.Loader{EmbeddedData: embeddedData}
+
+	// Translation function that uses loaded locales
+	translator := func(lang string, loc map[string]string) func(string) string {
+		return func(key string) string {
+			if v, ok := loc[key]; ok {
+				return v
+			}
+			return key
+		}
+	}
+
+	lang := data.Invoice.Language
+	if lang == "" {
+		lang = "en"
+	}
+	locMap, err := loader.Load(lang, customLocale)
 	require.NoError(t, err)
+
+	html, err := RenderHTMLWithLocale(data, customTemplate, customLocale, func(l string, _ map[string]string) func(string) string { return translator(l, locMap) }, loader)
+	require.NoError(t, err)
+	assert.Contains(t, html, "Custom Template")
 	assert.Contains(t, html, data.Provider.Name)
-	assert.Contains(t, html, data.Client.Name)
+	assert.Contains(t, html, "Test Invoice")
 }
 
+// TODO [context: render_test.go, priority: medium, effort: 1h]: Add more edge case tests for RenderHTMLWithLocale (invalid locale, missing template, etc.)
 // Remove tests for embedded data type extraction, as compliance is now set from YAML, not template

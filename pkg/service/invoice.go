@@ -16,11 +16,12 @@ import (
 	"invoiceformats/pkg/di"
 	appErrs "invoiceformats/pkg/errors"
 	"invoiceformats/pkg/i18n"
-	"invoiceformats/pkg/interfaces"
+	interfacesPDF "invoiceformats/pkg/interfaces"
 	"invoiceformats/pkg/logging"
 	"invoiceformats/pkg/models"
 	"invoiceformats/pkg/pdf"
 	"invoiceformats/pkg/render"
+	"invoiceformats/pkg/render/interfaces"
 	"invoiceformats/pkg/validation"
 	"invoiceformats/pkg/xml"
 )
@@ -29,17 +30,19 @@ import (
 // Inject ZUGFeRDInvoiceXMLBuilder for DI
 
 type InvoiceService struct {
-	config    *config.AppConfig
-	logger    logging.Logger
-	validator *validation.Validator
+	config      *config.AppConfig
+	logger      logging.Logger
+	validator   *validation.Validator
+	localeLoader interfaces.LocaleLoader
 }
 
 // NewInvoiceService creates a new invoice service instance
-func NewInvoiceService(cfg *config.AppConfig, logger logging.Logger) *InvoiceService {
+func NewInvoiceService(cfg *config.AppConfig, logger logging.Logger, loader interfaces.LocaleLoader) *InvoiceService {
 	return &InvoiceService{
-		config:    cfg,
-		logger:    logger,
-		validator: validation.NewValidator(),
+		config:      cfg,
+		logger:      logger,
+		validator:   validation.NewValidator(),
+		localeLoader: loader,
 	}
 }
 
@@ -47,13 +50,14 @@ func NewInvoiceService(cfg *config.AppConfig, logger logging.Logger) *InvoiceSer
 type GenerateOptions struct {
 	OutputFile     string
 	Template       string
+	Locale         string // Path to custom locale file
 	Currency       string
 	TaxRate        *float64
 	IncludeHTML    bool
 	DryRun         bool
 	ValidateOnly   bool
 	EnableZUGFeRD  bool
-	EmbeddedDataProvider interfaces.PDFEmbeddedDataProvider
+	EmbeddedDataProvider interfacesPDF.PDFEmbeddedDataProvider
 }
 
 // GenerateInvoice creates an invoice PDF from the provided data
@@ -107,7 +111,25 @@ func (s *InvoiceService) GenerateInvoice(data *models.InvoiceData, opts *Generat
 
 	// Update service to use new RenderHTML signature and set EmbeddedData
 	// Render HTML and extract embedded data type from template
-	html, err := render.RenderHTML(*data, opts.Template)
+
+	// Prepare locale loader and translator provider
+	// localeLoader := &locale.Loader{} // REMOVE
+	translator := func(lang string, loc map[string]string) func(string) string {
+		return func(key string) string {
+			if v, ok := loc[key]; ok {
+				return v
+			}
+			return key
+		}
+	}
+
+	lang := data.Invoice.Language
+	if lang == "" {
+		lang = "en"
+	}
+	locMap, _ := s.localeLoader.Load(lang, opts.Locale)
+
+	html, err := render.RenderHTMLWithLocale(*data, opts.Template, opts.Locale, func(l string, _ map[string]string) func(string) string { return translator(l, locMap) }, s.localeLoader)
 	if err != nil {
 		s.logger.Error("HTML rendering failed", &logging.LogFields{Error: err.Error()})
 		return appErrs.NewPDFGenerationError("failed to render HTML", err)
@@ -305,6 +327,73 @@ func (s *InvoiceService) CreateSampleInvoice() *models.InvoiceData {
 	// Enable ZUGFeRD embedding for sample invoice
 	invoiceData.EmbeddedData = models.EmbeddedDataZUGFeRD
 	return invoiceData
+}
+
+// GenerateInvoicesMultiLang generates invoices in multiple languages using renderer's output_name logic for filenames.
+func (s *InvoiceService) GenerateInvoicesMultiLang(data *models.InvoiceData, opts *GenerateOptions, languages []string) map[string]error {
+	results := make(map[string]error)
+	if len(languages) == 0 {
+		languages = []string{"en"}
+	}
+
+	i18nProvider := func(lang string, loc map[string]string) func(string) string {
+		return func(key string) string {
+			if v, ok := loc[key]; ok {
+				return v
+			}
+			return key
+		}
+	}
+
+	renderer := render.NewRenderer(i18nProvider)
+
+	for _, lang := range languages {
+		invoiceCopy := *data
+		invoiceCopy.Invoice.Language = lang
+
+		locMap, _ := s.localeLoader.Load(lang, opts.Locale)
+
+		outputName, err := renderer.RenderOutputName(invoiceCopy, opts.Template)
+		if err != nil || outputName == "" {
+			outputName = fmt.Sprintf("Invoice-%s-%s.pdf", invoiceCopy.Invoice.Number, lang)
+		}
+		outputFile := outputName
+		if filepath.Ext(outputFile) != ".pdf" {
+			outputFile += ".pdf"
+		}
+
+		html, err := render.RenderHTMLWithLocale(invoiceCopy, opts.Template, opts.Locale, func(l string, _ map[string]string) func(string) string { return i18nProvider(l, locMap) }, s.localeLoader)
+		if err != nil {
+			s.logger.Error("HTML rendering failed", &logging.LogFields{Error: err.Error()})
+			results[lang] = err
+			continue
+		}
+
+		if opts.DryRun {
+			s.logger.Info("Dry run mode - would generate PDF", &logging.LogFields{File: outputFile})
+			results[lang] = nil
+			continue
+		}
+
+		if opts.IncludeHTML {
+			htmlFile := changeExtension(outputFile, ".html")
+			if err := os.WriteFile(htmlFile, []byte(html), 0644); err != nil {
+				s.logger.Warn("Failed to save HTML file", &logging.LogFields{Error: err.Error(), File: htmlFile})
+			} else {
+				s.logger.Info("HTML file saved", &logging.LogFields{File: htmlFile})
+			}
+		}
+
+		if err := pdf.GeneratePDFChromedp(html, outputFile, s.logger); err != nil {
+			s.logger.Error("PDF generation failed", &logging.LogFields{Error: err.Error(), File: outputFile})
+			results[lang] = err
+			continue
+		}
+
+		s.logger.Info("Invoice generated successfully", &logging.LogFields{File: outputFile})
+		results[lang] = nil
+	}
+	return results
 }
 
 // applyDefaults applies service configuration defaults to invoice data and options

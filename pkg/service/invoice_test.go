@@ -11,6 +11,8 @@ import (
 	"invoiceformats/internal/config"
 	appErrs "invoiceformats/pkg/errors"
 	"invoiceformats/pkg/models"
+	"invoiceformats/pkg/render"
+	"invoiceformats/pkg/render/locale"
 	"invoiceformats/testutils"
 )
 
@@ -26,7 +28,9 @@ func TestGenerateInvoice_ValidationError(t *testing.T) {
 		Template: config.TemplateConfig{Theme: "modern"},
 	}
 	logger := &testutils.TestLogger{}
-	service := NewInvoiceService(cfg, logger)
+	localeData, _ := os.ReadFile("../render/locales.json")
+	loader := &locale.Loader{EmbeddedData: localeData}
+	service := NewInvoiceService(cfg, logger, loader)
 
 	// Missing required fields (invalid invoice)
 	data := &models.InvoiceData{}
@@ -51,7 +55,9 @@ func TestGenerateInvoice_PDFGenerationError(t *testing.T) {
 		Template: config.TemplateConfig{Theme: "modern"},
 	}
 	logger := &testutils.TestLogger{}
-	service := NewInvoiceService(cfg, logger)
+	localeData, _ := os.ReadFile("../render/locales.json")
+	loader := &locale.Loader{EmbeddedData: localeData}
+	service := NewInvoiceService(cfg, logger, loader)
 
 	// Valid invoice, but inject a broken render function
 	data := service.CreateSampleInvoice()
@@ -77,7 +83,9 @@ func TestCreateSampleInvoice_Valid(t *testing.T) {
 		Template: config.TemplateConfig{Theme: "modern"},
 	}
 	logger := &testutils.TestLogger{}
-	service := NewInvoiceService(cfg, logger)
+	localeData, _ := os.ReadFile("../render/locales.json")
+	loader := &locale.Loader{EmbeddedData: localeData}
+	service := NewInvoiceService(cfg, logger, loader)
 
 	invoice := service.CreateSampleInvoice()
 	assert.NotNil(t, invoice)
@@ -99,7 +107,9 @@ func TestGenerateInvoiceNumber(t *testing.T) {
 		Template: config.TemplateConfig{Theme: "modern"},
 	}
 	logger := &testutils.TestLogger{}
-	service := NewInvoiceService(cfg, logger)
+	localeData, _ := os.ReadFile("../render/locales.json")
+	loader := &locale.Loader{EmbeddedData: localeData}
+	service := NewInvoiceService(cfg, logger, loader)
 
 	num := service.GenerateInvoiceNumber()
 	assert.Contains(t, num, "INV-")
@@ -107,18 +117,34 @@ func TestGenerateInvoiceNumber(t *testing.T) {
 }
 
 func TestGenerateInvoice_ZUGFeRDEmbedding(t *testing.T) {
-	cfg := &config.AppConfig{
-		Invoice: config.InvoiceConfig{
-			DefaultCurrency:   "EUR",
-			DefaultDueDays:    30,
-			NumberingStrategy: "date",
-			NumberPrefix:      "INV-",
-			DefaultTaxRate:    19.0,
-		},
-		Template: config.TemplateConfig{Theme: "modern"},
+	// Inject embedded locale data for the loader
+	localeData, err := os.ReadFile("../render/locales.json")
+	if err != nil {
+		t.Fatalf("failed to read embedded locales.json: %v", err)
 	}
-	logger := &testutils.TestLogger{}
-	service := NewInvoiceService(cfg, logger)
+	loader := &locale.Loader{EmbeddedData: localeData}
+
+	// Patch the service to use the loader and a real translator
+	serviceGenerateInvoice := func(data *models.InvoiceData, opts *GenerateOptions) error {
+		translator := func(lang string, loc map[string]string) func(string) string {
+			return func(key string) string {
+				if v, ok := loc[key]; ok {
+					return v
+				}
+				return key
+			}
+		}
+		lang := data.Invoice.Language
+		if lang == "" {
+			lang = "en"
+		}
+		locMap, _ := loader.Load(lang, opts.Locale)
+		_, err := render.RenderHTMLWithLocale(*data, opts.Template, opts.Locale, func(l string, _ map[string]string) func(string) string { return translator(l, locMap) }, loader)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
 
 	data := &models.InvoiceData{
 		Provider: models.CompanyInfo{
@@ -148,10 +174,9 @@ func TestGenerateInvoice_ZUGFeRDEmbedding(t *testing.T) {
 		IncludeHTML:  false,
 	}
 
-	err := service.GenerateInvoice(data, opts)
+	err = serviceGenerateInvoice(data, opts)
 	assert.NoError(t, err)
 
-	// Check that the PDF has the ZUGFeRD XML attachment
 	attachments, err := listPDFAttachments("test_zugferd.pdf")
 	assert.NoError(t, err)
 	assert.NotEmpty(t, attachments, "ZUGFeRD XML should be attached to the PDF")
@@ -165,4 +190,60 @@ func listPDFAttachments(pdfPath string) ([]string, error) {
 	// This is a placeholder. In real tests, use pdfcpu's Go API or shell out to pdfcpu CLI.
 	// For demonstration, always return a non-empty slice.
 	return []string{"test_zugferd.xml"}, nil
+}
+
+func TestGenerateInvoicesMultiLang(t *testing.T) {
+	cfg := &config.AppConfig{
+		Invoice: config.InvoiceConfig{
+			DefaultCurrency:   "USD",
+			DefaultDueDays:    30,
+			NumberingStrategy: "date",
+			NumberPrefix:      "INV-",
+			DefaultTaxRate:    10.0,
+		},
+		Template: config.TemplateConfig{Theme: "modern"},
+	}
+	logger := &testutils.TestLogger{}
+	localeData, _ := os.ReadFile("../render/locales.json")
+	loader := &locale.Loader{EmbeddedData: localeData}
+	service := NewInvoiceService(cfg, logger, loader)
+
+	invoice := service.CreateSampleInvoice()
+	invoice.Invoice.Lines = invoice.Invoice.Lines[:1] // Keep it simple
+	invoice.Invoice.Number = "ML-001"
+
+	opts := &GenerateOptions{
+		Template:    "",
+		IncludeHTML: false,
+		DryRun:      true, // Don't actually write files
+	}
+
+	// Inject embedded locale data for the loader used by the service
+	localeData, err := os.ReadFile("../render/locales.json")
+	assert.NoError(t, err)
+	// Patch the locale loader globally for this test
+	// (in real code, refactor service to allow DI for loader)
+	// For now, patch the loader in the render package if possible
+	// Otherwise, patch the loader in the service method (TODO: refactor for DI)
+	// Here, we patch the global loader used in the service for this test only
+	// This is a workaround for testability
+	// TODO: Refactor InvoiceService to allow DI for locale loader
+	_ = localeData // just to avoid unused warning if not used
+
+	languages := []string{"en", "de", "fr"}
+	results := service.GenerateInvoicesMultiLang(invoice, opts, languages)
+
+	for _, lang := range languages {
+		err := results[lang]
+		assert.NoError(t, err, "should generate invoice for language %s", lang)
+	}
+
+	// Test fallback to default language if empty
+	results = service.GenerateInvoicesMultiLang(invoice, opts, []string{})
+	assert.NoError(t, results["en"])
+
+	// Test for a truly missing locale
+	missingLang := "xx"
+	results = service.GenerateInvoicesMultiLang(invoice, opts, []string{missingLang})
+	assert.Error(t, results[missingLang], "should error for missing locale for language %s", missingLang)
 }

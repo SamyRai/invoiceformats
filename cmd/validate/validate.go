@@ -3,6 +3,7 @@ package validate
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/spf13/cobra"
 
@@ -10,6 +11,7 @@ import (
 	appErrs "invoiceformats/pkg/errors"
 	loader "invoiceformats/pkg/loader"
 	"invoiceformats/pkg/logging"
+	"invoiceformats/pkg/render"
 	"invoiceformats/pkg/service"
 )
 
@@ -125,5 +127,11 @@ func GetLogger() logging.Logger {
 func GetInvoiceService() (*service.InvoiceService, error) {
 	cfg := config.DefaultConfig()
 	logger := GetLogger()
-	return service.NewInvoiceService(cfg, logger), nil
+	// Load embedded locales.json
+	localeData, err := os.ReadFile("pkg/render/locales.json")
+	if err != nil {
+		return nil, fmt.Errorf("failed to load embedded locales.json: %w", err)
+	}
+	loader := render.NewLocaleLoader(localeData)
+	return service.NewInvoiceService(cfg, logger, loader), nil
 }

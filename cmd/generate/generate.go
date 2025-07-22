@@ -14,6 +14,7 @@ import (
 	"invoiceformats/pkg/loader"
 	"invoiceformats/pkg/logging"
 	"invoiceformats/pkg/models"
+	"invoiceformats/pkg/render"
 	"invoiceformats/pkg/service"
 )
 
@@ -27,13 +28,20 @@ var (
 	dryRun         bool
 	validateOnly   bool
 	sample         bool
+	locale         string
 )
 
 // GetInvoiceService returns a default invoice service instance
 func GetInvoiceService() (*service.InvoiceService, error) {
 	cfg := config.DefaultConfig()
 	logger := logging.NewLogger()
-	return service.NewInvoiceService(cfg, logger), nil
+	// Load embedded locales.json
+	localeData, err := os.ReadFile("pkg/render/locales.json")
+	if err != nil {
+		return nil, fmt.Errorf("failed to load embedded locales.json: %w", err)
+	}
+	loader := render.NewLocaleLoader(localeData)
+	return service.NewInvoiceService(cfg, logger, loader), nil
 }
 
 // generateCmd represents the generate command
@@ -115,6 +123,7 @@ Examples:
 		opts := &service.GenerateOptions{
 			OutputFile:   outputFile,
 			Template:     template,
+			Locale:       locale,
 			Currency:     currency,
 			IncludeHTML:  includeHTML,
 			DryRun:       dryRun,
@@ -175,4 +184,5 @@ func init() {
 	generateCmd.Flags().BoolVar(&includeHTML, "include-html", false, "also save HTML output")
 	generateCmd.Flags().BoolVar(&dryRun, "dry-run", false, "validate and process but don't generate files")
 	generateCmd.Flags().BoolVar(&validateOnly, "validate-only", false, "only validate the data, don't generate")
+	generateCmd.Flags().StringVar(&locale, "locale", "", "custom locale JSON file to use for translations")
 }

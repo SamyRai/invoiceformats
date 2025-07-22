@@ -3,6 +3,7 @@ package zugferd
 import (
 	"encoding/xml"
 	"errors"
+	"fmt"
 	"invoiceformats/pkg/models"
 )
 
@@ -94,8 +95,8 @@ func mapLineItems(items []models.LineItem) []LineItemXML {
 		result[i] = LineItemXML{
 			Description: item.Description,
 			Quantity:    item.Quantity,
-			UnitPrice:   item.UnitPrice,
-			Total:       item.Total,
+			UnitPrice:   fmt.Sprintf("%.2f", item.UnitPrice),
+			Total:       fmt.Sprintf("%.2f", item.Total),
 			TaxRate:     item.TaxRate, // Correctly map TaxRate
 			// TODO [context: Line item XML, priority: medium, effort: medium]: Add product codes, units, etc.
 		}
@@ -108,7 +109,7 @@ func mapTaxDetails(taxes []models.TaxDetail) []TaxDetailXML {
 	for i, tax := range taxes {
 		result[i] = TaxDetailXML{
 			Type:   tax.Type,
-			Amount: tax.Amount,
+			Amount: fmt.Sprintf("%.2f", tax.Amount),
 			Rate:   tax.Rate,
 			// TODO [context: Tax details XML, priority: medium, effort: medium]: Add support for multi-rate VAT, exemptions, etc.
 		}

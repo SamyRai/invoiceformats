@@ -23,7 +23,7 @@ A modern, production-ready Go library and CLI for generating, validating, and em
 
 ## Overview
 
-InvoiceFormats provides a robust, extensible platform for generating, validating, and embedding electronic invoices in compliance with European standards. It supports both CLI and API usage, with a focus on modularity, testability, and clean architecture.
+InvoiceFormats provides a robust, extensible platform for generating, validating, and embedding electronic invoices in compliance with European standards.
 
 ## Features
 
@@ -110,7 +110,6 @@ Specify your license in a `LICENSE` file (MIT, Apache 2.0, etc.)
 
 ## Roadmap
 
-- [ ] Add HTTP API server
 - [ ] Expand UBL/EN16931 validation
 - [ ] Add more invoice templates and i18n locales
 - [ ] Improve error domain and logging
