@@ -2,64 +2,55 @@ package zugferd_test
 
 import (
 	"testing"
+	"time"
 
 	"invoiceformats/pkg/models"
 	"invoiceformats/providers/zugferd"
+
+	"github.com/shopspring/decimal"
 )
 
-func mapToZUGFeRDInvoiceXML(inv models.ZUGFeRDInvoice) zugferd.ZUGFeRDInvoiceXML {
-	return zugferd.ZUGFeRDInvoiceXML{
-		XmlnsRsm: "urn:ferd:CrossIndustryDocument:invoice:1p0",
-		XmlnsRam: "urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:12",
-		XmlnsUdt: "urn:un:unece:uncefact:data:standard:UnqualifiedDataType:15",
-		Context: zugferd.DocumentContextXML{GuidelineID: inv.Profile},
-		Agreement: zugferd.TradeAgreementXML{
-			Seller: zugferd.PartyXML{Name: inv.Seller.Name},
-			Buyer:  zugferd.PartyXML{Name: inv.Buyer.Name},
-		},
-		Document: zugferd.DocumentXML{
-			ID:        inv.DocumentID,
-			IssueDate: zugferd.DateTimeXML{DateString: inv.IssueDate},
-		},
-		Transaction: zugferd.SupplyChainTradeTransactionXML{
-			LineItems: []zugferd.LineItemXML{}, // TODO: map inv.LineItems
-		},
-		Settlement: zugferd.TradeSettlementXML{
-			GrandTotal: inv.GrandTotal,
-			Currency:   inv.Currency,
-			Taxes:      []zugferd.TaxDetailXML{}, // TODO: map inv.Taxes
-		},
-	}
-}
-
 func TestBuildBasicXML_ValidInvoice(t *testing.T) {
-	inv := models.ZUGFeRDInvoice{
-		Profile:    "BASIC",
-		Seller:     models.Party{Name: "Test Seller"},
-		Buyer:      models.Party{Name: "Test Buyer"},
-		DocumentID: "INV-123",
-		IssueDate:  "20250713",
-		GrandTotal: "100.00",
-		Currency:   "EUR",
-		LineItems: []models.LineItem{
-			{
-				Description: "Test Item",
-				Quantity:    1,
-				UnitPrice:   100.00,
-				Total:       100.00,
+	inv := models.InvoiceData{
+		Provider: models.CompanyInfo{
+			Name: "Test Seller",
+			VATID: "DE123456789",
+			Address: models.Address{
+				Street:     "Teststr. 1",
+				City:       "Berlin",
+				PostalCode: "10115",
+				Country:    "DE",
 			},
 		},
-		Taxes: []models.TaxDetail{
-			{
-				Type:   "VAT",
-				Amount: 19.00,
-				Rate:   19.0,
+		Client: models.ClientInfo{
+			Name: "Test Buyer",
+			VATID: "DE987654321",
+			Address: models.Address{
+				Street:     "Kaufstr. 2",
+				City:       "Munich",
+				PostalCode: "80331",
+				Country:    "DE",
+			},
+		},
+		Invoice: models.InvoiceDetails{
+			Number: "INV-001",
+			Date:   time.Date(2025, 7, 14, 0, 0, 0, 0, time.UTC),
+			GrandTotal: decimal.NewFromFloat(100.00),
+			Currency: models.Currency{Code: "EUR"},
+			Lines: []models.InvoiceLine{
+				{
+					Description: "Service",
+					Quantity:    decimal.NewFromFloat(1),
+					UnitPrice:   decimal.NewFromFloat(100.00),
+					Total:       decimal.NewFromFloat(100.00),
+					TaxRate:     decimal.NewFromFloat(19.0),
+					TaxAmount:   decimal.NewFromFloat(19.00),
+				},
 			},
 		},
 	}
 	builder := zugferd.ZUGFeRDBasicXMLBuilder{}
-	xmlInvoice := mapToZUGFeRDInvoiceXML(inv)
-	xmlData, err := builder.BuildXML(xmlInvoice)
+	xmlData, err := builder.BuildXML(inv)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -69,27 +60,27 @@ func TestBuildBasicXML_ValidInvoice(t *testing.T) {
 }
 
 func TestBuildBasicXML_MissingFields(t *testing.T) {
-	inv := models.ZUGFeRDInvoice{}
+	inv := models.InvoiceData{}
 	builder := zugferd.ZUGFeRDBasicXMLBuilder{}
-	xmlInvoice := mapToZUGFeRDInvoiceXML(inv)
-	_, err := builder.BuildXML(xmlInvoice)
+	_, err := builder.BuildXML(inv)
 	if err == nil {
 		t.Error("expected error for missing fields, got nil")
 	}
 }
 
 func TestBuildBasicXML_InvalidDate(t *testing.T) {
-	inv := models.ZUGFeRDInvoice{
-		Seller:     models.Party{Name: "Seller"},
-		Buyer:      models.Party{Name: "Buyer"},
-		DocumentID: "INV-001",
-		IssueDate:  "notadate",
-		GrandTotal: "100.00",
-		Currency:   "EUR",
+	inv := models.InvoiceData{
+		Provider: models.CompanyInfo{Name: "Seller"},
+		Client: models.ClientInfo{Name: "Buyer"},
+		Invoice: models.InvoiceDetails{
+			Number: "INV-001",
+			Date:   time.Time{}, // Invalid date
+			GrandTotal: decimal.NewFromFloat(100.00),
+			Currency: models.Currency{Code: "EUR"},
+		},
 	}
 	builder := zugferd.ZUGFeRDBasicXMLBuilder{}
-	xmlInvoice := mapToZUGFeRDInvoiceXML(inv)
-	_, err := builder.BuildXML(xmlInvoice)
+	_, err := builder.BuildXML(inv)
 	if err == nil {
 		t.Error("expected error for invalid IssueDate, got nil")
 	}

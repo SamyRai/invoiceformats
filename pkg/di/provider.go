@@ -9,28 +9,13 @@ import (
 )
 
 // ProvidePDFEmbeddedDataProvider returns a PDFEmbeddedDataProvider wired with DI
-// This is a stub implementation. Replace with real provider as needed.
-type basicEmbeddedDataProvider struct {
-	builder interfaces.ZUGFeRDInvoiceXMLBuilder
-}
-
-func (p *basicEmbeddedDataProvider) Generate(data interface{}, opts interface{}) (string, string, error) {
-	// TODO: [context: DI, priority: medium, effort: 1h] Implement real embedded data generation logic
-	return "", "", nil
-}
-
+// This implementation directly uses the ZUGFeRD builder and domain mapping, no adapters.
 type zugferdEmbeddedDataProvider struct {
 	builder interfaces.ZUGFeRDInvoiceXMLBuilder
 }
 
-func (p *zugferdEmbeddedDataProvider) Generate(data interface{}, opts interface{}) (string, string, error) {
-	invoiceData, ok := data.(*models.InvoiceData)
-	if !ok {
-		return "", "", fmt.Errorf("invalid data type for ZUGFeRD provider: %T", data)
-	}
-	// Map InvoiceData to ZUGFeRDInvoiceXML (domain type)
-	mapped := zugferd.MapInvoiceDataToZUGFeRD(invoiceData)
-	xmlBytes, err := p.builder.BuildXML(mapped)
+func (p *zugferdEmbeddedDataProvider) Generate(data models.InvoiceData, opts any) (string, string, error) {
+	xmlBytes, err := p.builder.BuildXML(data)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to build ZUGFeRD XML: %w", err)
 	}
@@ -51,21 +36,9 @@ func ProvidePDFEmbeddedDataProvider() interfaces.PDFEmbeddedDataProvider {
 	return &zugferdEmbeddedDataProvider{builder: builder}
 }
 
-type zugferdBasicXMLBuilderAdapter struct {
-	inner zugferd.ZUGFeRDBasicXMLBuilder
-}
-
-func (a zugferdBasicXMLBuilderAdapter) BuildXML(data interface{}) ([]byte, error) {
-	invoice, ok := data.(zugferd.ZUGFeRDInvoiceXML)
-	if !ok {
-		return nil, fmt.Errorf("invalid type for ZUGFeRDInvoiceXMLBuilder: %T", data)
-	}
-	return a.inner.BuildXML(invoice)
-}
-
 // ProvideZUGFeRDInvoiceXMLBuilder returns the default ZUGFeRD XML builder implementation
 func ProvideZUGFeRDInvoiceXMLBuilder() interfaces.ZUGFeRDInvoiceXMLBuilder {
-	return zugferdBasicXMLBuilderAdapter{inner: zugferd.ZUGFeRDBasicXMLBuilder{}}
+	return zugferd.ZUGFeRDBasicXMLBuilder{}
 }
 
 // TODO [context: DI, priority: high, effort: medium]: Add more providers for other interfaces and implementations as refactor progresses

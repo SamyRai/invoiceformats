@@ -24,13 +24,8 @@ func NewZUGFeRDProvider(logger logging.Logger) *ZUGFeRDProvider {
 }
 
 // GenerateXML generates ZUGFeRD-compliant XML from invoice data.
-func (p *ZUGFeRDProvider) GenerateXML(domain models.ZUGFeRDInvoice) ([]byte, error) {
-	// Use new builder function for EN16931 compliance
-	xmlInvoice, err := MapInvoiceToXML(domain, FormatEN16931)
-	if err != nil {
-		return nil, err
-	}
-	return p.Builder.BuildXML(xmlInvoice)
+func (p *ZUGFeRDProvider) GenerateXML(data models.InvoiceData) ([]byte, error) {
+	return p.Builder.BuildXML(data)
 }
 
 // ValidateXML validates ZUGFeRD XML against schemas and business rules.

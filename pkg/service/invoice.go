@@ -161,7 +161,7 @@ func (s *InvoiceService) GenerateInvoice(data *models.InvoiceData, opts *Generat
 		s.logger.Info("ZUGFeRD embedding requested", &logging.LogFields{File: opts.OutputFile})
 		if opts.EmbeddedDataProvider != nil {
 			s.logger.Info("Generating embedded data using provider", &logging.LogFields{File: opts.OutputFile})
-			filePath, desc, err := opts.EmbeddedDataProvider.Generate(data, opts)
+			filePath, desc, err := opts.EmbeddedDataProvider.Generate(*data, opts)
 			if err != nil {
 				s.logger.Error("Embedded data generation failed", &logging.LogFields{Error: err.Error(), File: opts.OutputFile})
 				return appErrs.NewPDFGenerationError("failed to generate embedded data", err)

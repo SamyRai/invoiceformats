@@ -2,6 +2,9 @@ package zugferd_test
 
 import (
 	"testing"
+	"time"
+
+	"github.com/shopspring/decimal"
 
 	"invoiceformats/pkg/models"
 	"invoiceformats/providers/zugferd"
@@ -9,39 +12,48 @@ import (
 
 func TestGeneratedXMLValidatesAgainstSchema(t *testing.T) {
 	builder := zugferd.ZUGFeRDBasicXMLBuilder{}
-	invoice := models.ZUGFeRDInvoice{
-		Profile:    "BASIC",
-		Seller:     models.Party{Name: "Test Seller"},
-		Buyer:      models.Party{Name: "Test Buyer"},
-		DocumentID: "INV-123",
-		IssueDate:  "20250713",
-		GrandTotal: "100.00",
-		Currency:   "EUR",
-		LineItems: []models.LineItem{
-			{
-				Description: "Test Item",
-				Quantity:    1,
-				UnitPrice:   100.00,
-				Total:       100.00,
+	invoice := models.InvoiceData{
+		Provider: models.CompanyInfo{
+			Name:  "Test Seller",
+			VATID: "DE123456789",
+			Address: models.Address{
+				Street:     "Teststr. 1",
+				City:       "Berlin",
+				PostalCode: "10115",
+				Country:    "DE",
 			},
 		},
-		Taxes: []models.TaxDetail{
-			{
-				Type:   "VAT",
-				Amount: 19.00,
-				Rate:   19.0,
+		Client: models.ClientInfo{
+			Name:  "Test Buyer",
+			VATID: "DE987654321",
+			Address: models.Address{
+				Street:     "Kaufstr. 2",
+				City:       "Munich",
+				PostalCode: "80331",
+				Country:    "DE",
+			},
+		},
+		Invoice: models.InvoiceDetails{
+			Number: "INV-001",
+			Date:   time.Date(2025, 7, 14, 0, 0, 0, 0, time.UTC),
+			GrandTotal: decimal.NewFromFloat(100.00),
+			Currency: models.Currency{Code: "EUR"},
+			Lines: []models.InvoiceLine{
+				{
+					Description: "Service",
+					Quantity:    decimal.NewFromFloat(1),
+					UnitPrice:   decimal.NewFromFloat(100.00),
+					Total:       decimal.NewFromFloat(100.00),
+					TaxRate:     decimal.NewFromFloat(19.0),
+					TaxAmount:   decimal.NewFromFloat(19.00),
+				},
 			},
 		},
 	}
-
+	// TODO: Fill invoice with valid test data for schema validation
 	xsdPath := "../../xrechnung_schema/resources/cii/16b/xsd/CrossIndustryInvoice_100pD16B.xsd"
 
-	// Map models.ZUGFeRDInvoice to zugferd.ZUGFeRDInvoiceXML before BuildXML
-	xmlInvoice, err := zugferd.MapInvoiceToXML(invoice, zugferd.FormatZUGFeRD)
-	if err != nil {
-		t.Fatalf("failed to map invoice: %v", err)
-	}
-	xmlData, err := builder.BuildXML(xmlInvoice)
+	xmlData, err := builder.BuildXML(invoice)
 	if err != nil {
 		t.Fatalf("failed to build XML: %v", err)
 	}

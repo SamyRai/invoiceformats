@@ -54,8 +54,7 @@ func generateTestInvoiceXML() string {
 			},
 		},
 	}
-	xmlInvoice := zugferd.MapInvoiceDataToZUGFeRD(&domain)
-	xmlBytes, err := builder.BuildXML(xmlInvoice)
+	xmlBytes, err := builder.BuildXML(domain)
 	if err != nil {
 		panic(err) // Fail test if XML generation fails
 	}

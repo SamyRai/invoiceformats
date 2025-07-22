@@ -2,7 +2,6 @@ package zugferd
 
 import (
 	"encoding/xml"
-	"fmt"
 	"invoiceformats/pkg/models"
 )
 
@@ -28,10 +27,8 @@ type ZUGFeRDInvoiceXML struct {
 	XmlnsRam    string   `xml:"xmlns:ram,attr"`
 	XmlnsUdt    string   `xml:"xmlns:udt,attr"`
 	Context     DocumentContextXML `xml:"rsm:ExchangedDocumentContext"` // Fixed to use root namespace
-	Agreement   TradeAgreementXML  `xml:"ram:ApplicableHeaderTradeAgreement"`
-	Document    DocumentXML        `xml:"ram:ExchangedDocument"`
-	Transaction SupplyChainTradeTransactionXML `xml:"ram:SupplyChainTradeTransaction"`
-	Settlement  TradeSettlementXML `xml:"ram:ApplicableHeaderTradeSettlement"`
+	Document    DocumentXML        `xml:"rsm:ExchangedDocument"`
+	Transaction SupplyChainTradeTransactionXML `xml:"rsm:SupplyChainTradeTransaction"`
 }
 
 // DocumentContextXML for context parameters (profile, guideline)
@@ -49,6 +46,8 @@ type TradeAgreementXML struct {
 type DocumentXML struct {
 	ID        string `xml:"ram:ID"`
 	IssueDate DateTimeXML `xml:"ram:IssueDateTime"`
+	Agreement   TradeAgreementXML  `xml:"ram:ApplicableHeaderTradeAgreement"`
+	Settlement  TradeSettlementXML `xml:"ram:ApplicableHeaderTradeSettlement"`
 }
 
 type DateTimeXML struct {
@@ -106,37 +105,51 @@ func MapInvoiceDataToZUGFeRD(data *models.InvoiceData) ZUGFeRDInvoiceXML {
 	inv := data.Invoice
 	return ZUGFeRDInvoiceXML{
 		XmlnsRsm: "urn:un:unece:uncefact:data:standard:CrossIndustryInvoice:100",
-		XmlnsRam: "urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100", // Reverted to match XSD for child elements
-		// TODO [context: namespace extensibility, priority: medium, effort: low]: Support dynamic ram namespace for other profiles
+		XmlnsRam: "urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100",
 		XmlnsUdt: "urn:un:unece:uncefact:data:standard:UnqualifiedDataType:100",
 		Context: DocumentContextXML{
-			GuidelineID: string(ProfileBasic), // TODO: Use correct profile from data
-		},
-		Agreement: TradeAgreementXML{
-			Seller: PartyXML{
-				Name: data.Provider.Name,
-				VATID: data.Provider.VATID,
-				Address: AddressXML{
-					Street: data.Provider.Address.Street,
-					City: data.Provider.Address.City,
-					PostCode: data.Provider.Address.PostalCode,
-					Country: data.Provider.Address.Country,
-				},
-			},
-			Buyer: PartyXML{
-				Name: data.Client.Name,
-				VATID: data.Client.VATID,
-				Address: AddressXML{
-					Street: data.Client.Address.Street,
-					City: data.Client.Address.City,
-					PostCode: data.Client.Address.PostalCode,
-					Country: data.Client.Address.Country,
-				},
-			},
+			GuidelineID: string(ProfileEN16931),
 		},
 		Document: DocumentXML{
 			ID: inv.Number,
 			IssueDate: DateTimeXML{DateString: inv.Date.Format("20060102")},
+			Agreement: TradeAgreementXML{
+				Seller: PartyXML{
+					Name: data.Provider.Name,
+					VATID: data.Provider.VATID,
+					Address: AddressXML{
+						Street: data.Provider.Address.Street,
+						City: data.Provider.Address.City,
+						PostCode: data.Provider.Address.PostalCode,
+						Country: data.Provider.Address.Country,
+					},
+				},
+				Buyer: PartyXML{
+					Name: data.Client.Name,
+					VATID: data.Client.VATID,
+					Address: AddressXML{
+						Street: data.Client.Address.Street,
+						City: data.Client.Address.City,
+						PostCode: data.Client.Address.PostalCode,
+						Country: data.Client.Address.Country,
+					},
+				},
+			},
+			Settlement: TradeSettlementXML{
+				GrandTotal: inv.GrandTotal.String(),
+				Currency: inv.Currency.Code,
+				Taxes: func() []TaxDetailXML {
+					taxes := make([]TaxDetailXML, 0)
+					for _, line := range inv.Lines {
+						taxes = append(taxes, TaxDetailXML{
+							Type: "VAT",
+							Amount: line.TaxAmount.String(),
+							Rate: line.TaxRate.InexactFloat64(),
+						})
+					}
+					return taxes
+				}(),
+			},
 		},
 		Transaction: SupplyChainTradeTransactionXML{
 			LineItems: func() []LineItemXML {
@@ -145,27 +158,12 @@ func MapInvoiceDataToZUGFeRD(data *models.InvoiceData) ZUGFeRDInvoiceXML {
 					items[i] = LineItemXML{
 						Description: line.Description,
 						Quantity: line.Quantity.InexactFloat64(),
-						UnitPrice: fmt.Sprintf("%.2f", line.UnitPrice.InexactFloat64()),
-						Total: fmt.Sprintf("%.2f", line.Total.InexactFloat64()),
+						UnitPrice: line.UnitPrice.String(),
+						Total: line.Total.String(),
 						TaxRate: line.TaxRate.InexactFloat64(),
 					}
 				}
 				return items
-			}(),
-		},
-		Settlement: TradeSettlementXML{
-			GrandTotal: fmt.Sprintf("%.2f", inv.GrandTotal.InexactFloat64()),
-			Currency: inv.Currency.Code,
-			Taxes: func() []TaxDetailXML {
-				taxes := make([]TaxDetailXML, 0)
-				for _, line := range inv.Lines {
-					taxes = append(taxes, TaxDetailXML{
-						Type: "VAT",
-						Amount: fmt.Sprintf("%.2f", line.TaxAmount.InexactFloat64()),
-						Rate: line.TaxRate.InexactFloat64(),
-					})
-				}
-				return taxes
 			}(),
 		},
 	}
