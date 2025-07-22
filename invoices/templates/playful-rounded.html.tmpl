@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Invoice #{{ .Invoice.Number }}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          borderRadius: {
+            lg: '1rem'
+          },
+          fontFamily: {
+            sans: ['Nunito', 'system-ui', 'sans-serif']
+          },
+          colors: {
+            playful: {
+              background: '#fef9c3',
+              text: '#92400e',
+              accent: '#facc15'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;800&display=swap" rel="stylesheet">
+</head>
+<body class="bg-playful-background text-playful-text font-sans">
+  <div class="max-w-4xl mx-auto px-8 py-10 rounded-lg shadow-lg">
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-8">
+      <div>
+        <h1 class="text-3xl font-extrabold text-playful-text">{{ t "invoice" }}</h1>
+        <p class="text-sm">#{{ .Invoice.Number }}</p>
+      </div>
+      <div class="text-right text-sm">
+        <p>{{ t "date" }}: {{ .Invoice.Date.Format "Jan 2, 2006" }}</p>
+        <p>{{ t "due_date" }}: {{ .Invoice.DueDate.Format "Jan 2, 2006" }}</p>
+      </div>
+    </div>
+
+    <!-- Addresses -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-8 mb-10">
+      <div>
+        <h3 class="text-xs uppercase font-bold text-playful-accent mb-2">{{ t "from" }}</h3>
+        <p class="font-semibold">{{ .Provider.Name }}</p>
+        <p class="text-sm whitespace-pre-line">{{ .Provider.Address.String }}</p>
+        {{ if .Provider.Email }}<p class="text-sm">{{ .Provider.Email }}</p>{{ end }}
+      </div>
+      <div>
+        <h3 class="text-xs uppercase font-bold text-playful-accent mb-2">{{ t "bill_to" }}</h3>
+        <p class="font-semibold">{{ .Client.Name }}</p>
+        <p class="text-sm whitespace-pre-line">{{ .Client.Address.String }}</p>
+        {{ if .Client.Email }}<p class="text-sm">{{ .Client.Email }}</p>{{ end }}
+      </div>
+    </div>
+
+    <!-- Table -->
+    <div class="overflow-x-auto rounded-lg border border-yellow-300">
+      <table class="min-w-full text-sm">
+        <thead class="bg-playful-accent text-playful-text rounded-t-lg">
+          <tr>
+            <th class="text-left px-4 py-3">{{ t "description" }}</th>
+            <th class="text-center px-4 py-3">{{ t "qty" }}</th>
+            <th class="text-right px-4 py-3">{{ t "unit_price" }}</th>
+            <th class="text-right px-4 py-3">{{ t "total" }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{ range .Invoice.Lines }}
+          <tr class="border-t border-yellow-200">
+            <td class="px-4 py-3">{{ .Description }}</td>
+            <td class="text-center px-4 py-3">{{ .Quantity.String }}</td>
+            <td class="text-right px-4 py-3">{{ $.Invoice.Currency.Symbol }}{{ printf "%.2f" .UnitPrice.InexactFloat64 }}</td>
+            <td class="text-right px-4 py-3 font-semibold">{{ $.Invoice.Currency.Symbol }}{{ printf "%.2f" .Total.InexactFloat64 }}</td>
+          </tr>
+          {{ end }}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Totals -->
+    <div class="flex justify-end mt-8">
+      <div class="w-full sm:w-1/2 text-sm bg-yellow-50 p-4 rounded-lg space-y-2">
+        <div class="flex justify-between">
+          <span>{{ t "subtotal" }}</span>
+          <span>{{ .Invoice.Currency.Symbol }}{{ printf "%.2f" .Invoice.Subtotal.InexactFloat64 }}</span>
+        </div>
+        {{ if gt .Invoice.TotalTax.InexactFloat64 0 }}
+        <div class="flex justify-between">
+          <span>{{ t "tax" }}</span>
+          <span>{{ .Invoice.Currency.Symbol }}{{ printf "%.2f" .Invoice.TotalTax.InexactFloat64 }}</span>
+        </div>
+        {{ end }}
+        <div class="flex justify-between border-t pt-2 mt-2 font-bold text-base text-playful-text">
+          <span>{{ t "total_due" }}</span>
+          <span>{{ .Invoice.Currency.Symbol }}{{ printf "%.2f" .Invoice.GrandTotal.InexactFloat64 }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="text-center text-xs text-playful-text mt-10 pt-4">
+      {{ t "generated_with" }} 🧾 InvoiceFormats • {{ .Invoice.Date.Format "January 2, 2006" }}
+    </footer>
+  </div>
+</body>
+</html>

@@ -1,0 +1,274 @@
+{{ define "output_name" }}
+Invoice-{{ .Invoice.Number }}
+{{ end }}
+
+<!DOCTYPE html>
+<html lang="{{ .Invoice.Language | default "en" }}">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ t "invoice" }} {{ .Invoice.Number }}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        'sans': ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+                        'mono': ['JetBrains Mono', 'Consolas', 'Monaco', 'monospace'],
+                    },
+                    colors: {
+                        'invoice-primary': '#2563eb',
+                        'invoice-secondary': '#1e40af',
+                        'invoice-accent': '#f0f9ff',
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        @media print {
+            body { 
+                font-size: 12px !important; 
+                -webkit-print-color-adjust: exact;
+                color-adjust: exact;
+            }
+            .no-print { display: none !important; }
+            .print-break { page-break-before: always; }
+        }
+    </style>
+</head>
+<body class="bg-white font-sans text-gray-900 leading-relaxed">
+    <div class="max-w-4xl mx-auto p-8 sm:p-12">
+        <!-- Header Section -->
+        <header class="flex flex-col sm:flex-row justify-between items-start mb-12 pb-8 border-b border-gray-200">
+            <div class="mb-6 sm:mb-0">
+                <h1 class="text-2xl font-semibold text-invoice-secondary mb-2 tracking-tight">{{ t "invoice" }}</h1>
+                {{- if .Provider.Website }}
+                <p class="text-gray-400 text-xs">{{ .Provider.Website }}</p>
+                {{- end }}
+            </div>
+            <div class="text-right">
+                <div class="text-xl font-semibold text-gray-700 mb-2">#{{ .Invoice.Number }}</div>
+                <div class="text-xs text-gray-500 space-y-1">
+                    <div><span class="font-medium">{{ t "date" }}:</span> {{ .Invoice.Date.Format "January 2, 2006" }}</div>
+                    <div><span class="font-medium">{{ t "due_date" }}:</span> {{ .Invoice.DueDate.Format "January 2, 2006" }}</div>
+                    {{- if .Invoice.Status }}
+                    <div class="mt-2">
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-normal
+                            {{- if eq .Invoice.Status "paid" }} bg-green-50 text-green-700
+                            {{- else if eq .Invoice.Status "overdue" }} bg-red-50 text-red-700
+                            {{- else if eq .Invoice.Status "sent" }} bg-blue-50 text-blue-700
+                            {{- else }} bg-gray-50 text-gray-700{{ end }}">
+                            {{ .Invoice.Status | title }}
+                        </span>
+                    </div>
+                    {{- end }}
+                </div>
+            </div>
+        </header>
+
+        <!-- Parties Section -->
+        <section class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
+            <!-- Provider -->
+            <div class="space-y-4">
+                <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-200 pb-2">
+                    {{ t "from" }}
+                </h3>
+                <div>
+                    <h4 class="text-lg font-bold text-gray-900 mb-3">{{ .Provider.Name }}</h4>
+                    <div class="text-sm text-gray-600 space-y-1">
+                        <div class="whitespace-pre-line">{{ .Provider.Address.String }}</div>
+                        {{- if .Provider.Email }}
+                        <div><span class="font-medium">{{ t "email" }}:</span> {{ .Provider.Email }}</div>
+                        {{- end }}
+                        {{- if .Provider.Phone }}
+                        <div><span class="font-medium">{{ t "phone" }}:</span> {{ .Provider.Phone }}</div>
+                        {{- end }}
+                        {{- if .Provider.VATID }}
+                        <div><span class="font-medium">{{ t "vat_id" }}:</span> {{ .Provider.VATID }}</div>
+                        {{- end }}
+                        {{- if .Provider.IBAN }}
+                        <div><span class="font-medium">{{ t "iban" }}:</span> <span class="font-mono text-xs">{{ .Provider.IBAN }}</span></div>
+                        {{- end }}
+                        {{- if .Provider.SWIFT }}
+                        <div><span class="font-medium">{{ t "swift" }}:</span> <span class="font-mono text-xs">{{ .Provider.SWIFT }}</span></div>
+                        {{- end }}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Client -->
+            <div class="space-y-4">
+                <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-200 pb-2">
+                    {{ t "bill_to" }}
+                </h3>
+                <div>
+                    <h4 class="text-lg font-bold text-gray-900 mb-3">{{ .Client.Name }}</h4>
+                    <div class="text-sm text-gray-600 space-y-1">
+                        <div class="whitespace-pre-line">{{ .Client.Address.String }}</div>
+                        {{- if .Client.Email }}
+                        <div><span class="font-medium">{{ t "email" }}:</span> {{ .Client.Email }}</div>
+                        {{- end }}
+                        {{- if .Client.Phone }}
+                        <div><span class="font-medium">{{ t "phone" }}:</span> {{ .Client.Phone }}</div>
+                        {{- end }}
+                        {{- if .Client.VATID }}
+                        <div><span class="font-medium">{{ t "vat_id" }}:</span> {{ .Client.VATID }}</div>
+                        {{- end }}
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Items Table -->
+        <section class="mb-8">
+            <div class="overflow-x-auto rounded-lg">
+                <table class="min-w-full divide-y divide-gray-100">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-normal text-gray-600 tracking-wide">
+                                {{ t "description" }}
+                            </th>
+                            <th class="px-6 py-3 text-center text-xs font-normal text-gray-600 tracking-wide w-20">
+                                {{ t "qty" }}
+                            </th>
+                            <th class="px-6 py-3 text-right text-xs font-normal text-gray-600 tracking-wide w-28">
+                                {{ t "unit_price" }}
+                            </th>
+                            {{- $hasTax := false }}
+                            {{- range .Invoice.Lines }}
+                                {{- if gt .TaxRate.InexactFloat64 0 }}
+                                    {{- $hasTax = true }}
+                                    {{- break }}
+                                {{- end }}
+                            {{- end }}
+                            {{- if $hasTax }}
+                            <th class="px-6 py-3 text-center text-xs font-normal text-gray-600 tracking-wide w-20">
+                                {{ t "tax" }}
+                            </th>
+                            {{- end }}
+                            <th class="px-6 py-3 text-right text-xs font-normal text-gray-600 tracking-wide w-28">
+                                {{ t "total" }}
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        {{- range $index, $line := .Invoice.Lines }}
+                        <tr class="{{ if eq (mod $index 2) 0 }}bg-white{{ else }}bg-gray-50{{ end }} hover:bg-blue-50 transition-colors duration-200">
+                            <td class="px-6 py-4">
+                                <div class="font-medium text-gray-900">{{ .Description }}</div>
+                            </td>
+                            <td class="px-6 py-4 text-center">
+                                <span class="font-mono text-sm">{{ .Quantity.String }}</span>
+                            </td>
+                            <td class="px-6 py-4 text-right">
+                                <span class="font-mono text-sm">
+                                    <span class="font-semibold">{{ $.Invoice.Currency.Symbol }}</span>{{ printf "%.2f" .UnitPrice.InexactFloat64 }}
+                                </span>
+                            </td>
+                            {{- if $hasTax }}
+                            <td class="px-6 py-4 text-center">
+                                {{- if gt .TaxRate.InexactFloat64 0 }}
+                                <span class="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded-full font-medium">
+                                    {{ printf "%.1f" .TaxRate.InexactFloat64 }}%
+                                </span>
+                                {{- else }}
+                                <span class="text-gray-400">—</span>
+                                {{- end }}
+                            </td>
+                            {{- end }}
+                            <td class="px-6 py-4 text-right">
+                                <span class="font-mono text-sm font-semibold">
+                                    <span class="font-bold">{{ $.Invoice.Currency.Symbol }}</span>{{ printf "%.2f" .Total.InexactFloat64 }}
+                                </span>
+                            </td>
+                        </tr>
+                        {{- end }}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Totals Section -->
+        <section class="flex justify-end mb-12">
+            <div class="w-full max-w-sm">
+                <div class="bg-gray-50 rounded-lg p-6 space-y-3">
+                    <div class="flex justify-between items-center py-2 border-b border-gray-200">
+                        <span class="text-gray-600">{{ t "subtotal" }}:</span>
+                        <span class="font-mono font-semibold">
+                            <span class="font-bold">{{ .Invoice.Currency.Symbol }}</span>{{ printf "%.2f" .Invoice.Subtotal.InexactFloat64 }}
+                        </span>
+                    </div>
+                    {{- if gt .Invoice.TotalDiscount.InexactFloat64 0 }}
+                    <div class="flex justify-between items-center py-2 border-b border-gray-200">
+                        <span class="text-gray-600">{{ t "discount" }}:</span>
+                        <span class="font-mono font-semibold text-green-600">
+                            -<span class="font-bold">{{ .Invoice.Currency.Symbol }}</span>{{ printf "%.2f" .Invoice.TotalDiscount.InexactFloat64 }}
+                        </span>
+                    </div>
+                    {{- end }}
+                    {{- if gt .Invoice.TotalTax.InexactFloat64 0 }}
+                    <div class="flex justify-between items-center py-2 border-b border-gray-200">
+                        <span class="text-gray-600">{{ t "tax" }}:</span>
+                        <span class="font-mono font-semibold">
+                            <span class="font-bold">{{ .Invoice.Currency.Symbol }}</span>{{ printf "%.2f" .Invoice.TotalTax.InexactFloat64 }}
+                        </span>
+                    </div>
+                    {{- end }}
+                    <div class="flex justify-between items-center pt-4 border-t-2 border-invoice-primary">
+                        <span class="text-lg font-bold text-gray-900">{{ t "total_due" }}:</span>
+                        <span class="text-xl font-bold font-mono text-invoice-primary">
+                            <span class="font-bold">{{ .Invoice.Currency.Symbol }}</span>{{ printf "%.2f" .Invoice.GrandTotal.InexactFloat64 }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer Section -->
+        <footer class="border-t border-gray-200 pt-8 space-y-6">
+            {{- if or .Provider.IBAN .Invoice.PaymentTerms.Description }}
+            <div class="bg-invoice-accent border-l-4 border-invoice-primary rounded-r-lg p-6">
+                <h4 class="font-semibold text-invoice-secondary mb-3 flex items-center">
+                    <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M4 4a2 2 0 00-2 2v4a2 2 0 002 2V6h10a2 2 0 00-2-2H4zm2 6a2 2 0 012-2h8a2 2 0 012 2v4a2 2 0 01-2 2H8a2 2 0 01-2-2v-4zm6 4a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"></path>
+                    </svg>
+                    {{ t "payment_information" }}
+                </h4>
+                <div class="text-sm text-invoice-secondary space-y-2">
+                    {{- if .Invoice.PaymentTerms.Description }}
+                    <p>{{ .Invoice.PaymentTerms.Description }}</p>
+                    {{- end }}
+                    {{- if .Provider.IBAN }}
+                    <p>
+                        <span class="font-medium">{{ t "transfer_to" }}:</span> 
+                        <span class="font-mono text-xs bg-white px-2 py-1 rounded border">{{ .Provider.IBAN }}</span>
+                        {{- if .Provider.SWIFT }} 
+                        <span class="font-mono text-xs bg-white px-2 py-1 rounded border ml-1">({{ .Provider.SWIFT }})</span>
+                        {{- end }}
+                    </p>
+                    {{- end }}
+                </div>
+            </div>
+            {{- end }}
+            
+            {{- if .Invoice.Notes }}
+            <div class="text-center p-4 bg-gray-50 rounded-lg">
+                <p class="text-sm text-gray-600 italic">{{ .Invoice.Notes }}</p>
+            </div>
+            {{- end }}
+
+            <!-- Footer branding -->
+            <div class="text-center pt-6 border-t border-gray-100">
+                <p class="text-xs text-gray-400">
+                    {{ t "generated_with" }} 🧾 InvoiceFormats • {{ .Invoice.Date.Format "January 2, 2006" }}
+                </p>
+            </div>
+        </footer>
+    </div>
+</body>
+</html>
